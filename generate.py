@@ -190,8 +190,6 @@ def download_all_file(today ):
     sftp_client = sftp_util.get_sftp_client()
     try:
         download_all_file_tree(sftp_client, today, '10')
-        download_all_file_tree(sftp_client, today, '40')
-        download_all_file_tree(sftp_client, today, '50')
     except FileNotFoundError as e:
         return False
     finally:
@@ -218,14 +216,7 @@ def decrypt_all_file(today):
 
 
 def analysis_file(today):
-    for file in os.listdir(today):
-        if  file.startswith('decrypt'):
-            if 'custinf' in file:
-                write_excel.read_custinf_txt_file(os.path.join(today, file))
-            elif 'overdue' in file:
-                write_excel.read_overdue_txt_file(os.path.join(today, file))
-            else:
-                write_excel.read_tradinf_txt_file(os.path.join(today, file))
+    pass
 
 def encrypt_excel(today):
     write_excel.encrypt_excel(today)
