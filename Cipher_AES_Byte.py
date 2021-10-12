@@ -1,0 +1,90 @@
+# coding: utf-8
+'''
+Created on 2018年7月7日
+@author: ray
+'''
+
+import Crypto.Cipher.AES
+import Crypto.Random
+import base64
+import binascii
+
+'''
+    加密key是数组,且返回数组
+'''
+class Cipher_AES_Byte:
+    cipher = getattr(Crypto.Cipher, "AES")
+    pad = {"default": lambda x, y: x + (y - len(x) % y) * " ".encode("utf-8"),
+           "PKCS5Padding": lambda x, y: x + (y - len(x) % y) * chr(y - len(x) % y).encode("utf-8")}
+    unpad = {"default": lambda x: x.rstrip(),
+             "PKCS5Padding": lambda x: x[:-ord(x[-1])]}
+    encode = {"base64": base64.encodebytes,
+              "hex": binascii.b2a_hex}
+    decode = {"base64": base64.decodebytes,
+              "hex": binascii.a2b_hex}
+    # key 直接是二进制数组
+    def __init__(self, key=None, iv=None, cipher_method=None, pad_method="default", code_method=None):
+        self.__key = key if key else "abcdefgh12345678"  # 密钥（长度必须为16、24、32）
+        self.__iv = iv if iv else Crypto.Random.new().read(Cipher_AES_Byte.cipher.block_size)  # 向量（长度与密钥一致，ECB模式不需要）
+        self.__cipher_method = cipher_method.upper() if cipher_method and isinstance(cipher_method,
+                                                                                     str) else "MODE_ECB"  # 加密方式，["MODE_ECB"|"MODE_CBC"|"MODE_CFB"]等
+        self.__pad_method = pad_method  # 填充方式，解决 Java 问题选用"PKCS5Padding"
+        self.__code_method = code_method  # 编码方式，目前只有"base64"、"hex"两种
+        if self.__cipher_method == "MODE_CBC":
+            self.__cipher = Cipher_AES_Byte.cipher.new(self.__key, Cipher_AES_Byte.cipher.MODE_CBC,
+                                                  self.__iv.encode("utf-8"))
+        else:
+            self.__cipher = Cipher_AES_Byte.cipher.new(self.__key, Cipher_AES_Byte.cipher.MODE_ECB)
+
+    def __getitem__(self, item):
+        def get3value(item):
+            return item.start, item.stop, item.step
+
+        type_, method, _ = get3value(item)
+        dict_ = getattr(Cipher_AES_Byte, type_)
+        return dict_[method] if method in dict_ else dict_["default"]
+
+    def encrypt(self, text):
+        cipher_text = b"".join([self.__cipher.encrypt(i) for i in self.text_verify(text)])
+        #cipher_text = self.__cipher.encrypt( text)
+        encode_func = Cipher_AES_Byte.encode.get(self.__code_method)
+        if encode_func:
+            cipher_text = encode_func(cipher_text)
+        return cipher_text
+
+    def decrypt(self, cipher_text):
+        #cipher_text = cipher_text.encode("utf-8")
+        decode_func = Cipher_AES_Byte.decode.get(self.__code_method)
+        if decode_func:
+            cipher_text = decode_func(cipher_text)
+        #return self.pad_or_unpad("unpad", self.__cipher.decrypt(cipher_text).decode("utf-8"))
+        return  self.__cipher.decrypt(cipher_text)
+
+    def text_verify(self, text):
+        while len(text) > len(self.__key):
+            text_slice = text[:len(self.__key)]
+            text = text[len(self.__key):]
+            yield text_slice
+        else:
+            if len(text) == len(self.__key):
+                yield text
+            else:
+                yield self.pad_or_unpad("pad", text)
+
+    def pad_or_unpad(self, type_, contents):
+        lambda_func = self[type_: self.__pad_method]
+        return lambda_func(contents, len(self.__key)) if type_ == "pad" else lambda_func(contents)
+
+if __name__=="__main__":
+    key = "abcdefgh12345678"
+    iv = None
+    old= "JxrJc3cJbMJI5rmsBzLhVuZnWnG+POCG4UQxhS5KXfw9Nr8zpoDUMalfxM+Vl1LD"
+    text = "我爱小姐姐，可小姐姐不爱我 - -"
+    cipher_method = "MODE_ECB"
+    pad_method = "PKCS5Padding"
+    code_method = None
+    cipher_text = Cipher_AES_Byte(key.encode("utf-8"), iv, cipher_method, pad_method, code_method).encrypt(text)
+    encode_func = Cipher_AES_Byte.encode.get("base64")
+    print(encode_func(cipher_text) )
+    #text = Cipher_AES_Byte(key.encode("utf-8"), iv, cipher_method, pad_method, code_method).decrypt('+DOf+WwlbbM+eaR9IFn2Fg==')
+    #print(text)
